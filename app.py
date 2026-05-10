@@ -1,90 +1,72 @@
 import streamlit as st
 import pandas as pd
 import os
+from openai import OpenAI
 
-# Importamos tus estilos (asegúrate de que el archivo se llame nolasco_styles.py en GitHub)
+# 1. ESTILOS Y CONFIGURACIÓN
 try:
     from nolasco_styles import inject_styles
 except ImportError:
-    def inject_styles(): 
-        st.warning("Archivo nolasco_styles.py no encontrado. Asegúrate de que esté en el repositorio.")
+    def inject_styles(): st.write("Cargando estilos base...")
 
-# 1. CONFIGURACIÓN DE LA PÁGINA
-st.set_page_config(page_title="Nolasco Sabio - TEST", layout="wide", page_icon="🧠")
-
-# Aplicamos el CSS de Nolasco
+st.set_page_config(page_title="Nolasco Sabio - CHAT TEST", layout="wide")
 inject_styles()
 
-# 2. FUNCIÓN PARA CARGAR TU CSV
+# 2. CARGA DE DATOS (Tu "Información Veraz")
 def cargar_datos():
-    ruta_csv = 'datos_simulados.csv'
-    if os.path.exists(ruta_csv):
-        # Cargamos el CSV que creaste en GitHub
-        df = pd.read_csv(ruta_csv)
-        return df
-    else:
-        # Error si el archivo no existe en el repositorio
-        st.error(f"No se encuentra el archivo {ruta_csv} en el repositorio.")
-        return pd.DataFrame()
+    if os.path.exists('datos_simulados.csv'):
+        return pd.read_csv('datos_simulados.csv')
+    return pd.DataFrame()
 
-# 3. INTERFAZ PRINCIPAL
-def main():
-    st.markdown('<div class="nc-brand-header">Entorno de Pruebas: El Sabio</div>', unsafe_allow_html=True)
-    
-    # Cargamos los datos del CSV
-    df = cargar_datos()
+df = cargar_datos()
 
-    if not df.empty:
-        # --- EL SABIO PROACTIVO (Lectura de datos veraces) ---
-        # Cogemos datos de la primera fila para demostrar que la IA "lee" el archivo
-        primer_inmueble = df.iloc[0]['Inmueble']
-        proximo_hito = df.iloc[0]['Proximo_Hito']
-        renta_mensual = df.iloc[0]['Renta_Mensual']
+# 3. INTERFAZ VISUAL (La lista que ya tenías)
+st.markdown('<div class="nc-brand-header">El Sabio Patrimonial</div>', unsafe_allow_html=True)
+st.dataframe(df, use_container_width=True)
+
+# ================================================================
+# 4. EL CHATBOT (La ventanita interactiva)
+# ================================================================
+st.markdown("---")
+st.subheader("💬 Consulta al Sabio sobre tus datos")
+
+# Inicializar el historial del chat para que no se borre al escribir
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Mostrar mensajes previos
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# CAJA DE ENTRADA (La ventanita de abajo)
+if prompt := st.chat_input("Escribe tu pregunta aquí..."):
+    # 1. Mostrar mensaje del usuario
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # 2. Generar respuesta de la IA (El Cerebro)
+    with st.chat_message("assistant"):
+        # Le pasamos los datos del CSV como "contexto"
+        contexto_datos = df.to_string()
         
-        st.markdown(f'''
-            <div class="nc-ai-bubble">
-                <span style="font-weight:bold; color:#BC84EE;">💡 El Sabio dice:</span><br>
-                Pedro, he analizado tu archivo <b>datos_simulados.csv</b>. 
-                Para tu activo <b>{primer_inmueble}</b>, que genera <b>{renta_mensual}€</b> al mes, 
-                tienes este hito próximo: <i>{proximo_hito}</i>. 
-                ¿Quieres que recalculemos el flujo de caja?
-            </div>
-        ''', unsafe_allow_html=True)
+        # OJO: Aquí es donde mañana el programador conectará la API real
+        # Por ahora, simulamos la respuesta si no hay clave API
+        try:
+            # Si tienes la clave en Secrets de Streamlit, esto funcionará:
+            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": f"Eres el Sabio de Nolasco Capital. Responde usando estos datos: {contexto_datos}"},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            full_response = response.choices[0].message.content
+        except:
+            # Respuesta "Mock" por si aún no has configurado la clave API
+            full_response = f"Simulación: Veo que preguntas por '{prompt}'. Según el CSV, el Piso en Recogidas alquilado por 850€ es tu activo principal."
 
-        # --- VISUALIZACIÓN DE TABLAS Y KPIs ---
-        st.markdown('<div class="nc-section-title">Análisis de la Cartera (Datos CSV)</div>', unsafe_allow_html=True)
-        
-        # Mostramos los KPIs basados en el CSV
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            total_renta = df['Renta_Mensual'].sum()
-            st.markdown(f'''
-                <div class="nc-kpi">
-                    <div class="nc-kpi__label">Renta Total Mensual</div>
-                    <div class="nc-kpi__value">{total_renta:,.0f} €</div>
-                </div>
-            ''', unsafe_allow_html=True)
-        with col2:
-            num_activos = len(df)
-            st.markdown(f'''
-                <div class="nc-kpi">
-                    <div class="nc-kpi__label">Activos en Cartera</div>
-                    <div class="nc-kpi__value">{num_activos}</div>
-                </div>
-            ''', unsafe_allow_html=True)
-        with col3:
-            st.markdown(f'''
-                <div class="nc-kpi is-highlight">
-                    <div class="nc-kpi__label" style="color:white;">Estado Veracidad</div>
-                    <div class="nc-kpi__value" style="color:white;">CSV OK</div>
-                </div>
-            ''', unsafe_allow_html=True)
-
-        st.write("")
-        # Mostramos la tabla completa para verificar
-        st.dataframe(df, use_container_width=True)
-    else:
-        st.info("Esperando a que subas 'datos_simulados.csv' al repositorio para empezar el análisis.")
-
-if __name__ == "__main__":
-    main()
+        st.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
