@@ -63,7 +63,7 @@ if prompt := st.chat_input("Pregunta al Sabio..."):
                 
                 # Llamamos a Claude 3 Haiku (es rapidísimo y barato)
                 response = client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model="claude-sonnet-4-6",
                     max_tokens=500,
                     system=system_prompt,
                     messages=[
